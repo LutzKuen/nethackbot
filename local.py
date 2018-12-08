@@ -3,6 +3,7 @@
 # https://github.com/Tymewalk
 import pexpect, inspect, traceback, asyncio, subprocess, vscreen, os, json, re
 from cbot import genetic_bot
+from cbot import keras_bot
 import time
 import os
 import pandas as pd
@@ -153,11 +154,12 @@ def run_game(bot):
     times_waited = 0
     max_waiting = 5 # at most 15 round of nothing allowed
     while game_running:
-        print(chr(27) + "[2J")
+        #print(chr(27) + "[2J")
         try:
             #line = nh.read_nonblocking(size=9999, timeout=5).decode()
             #disp_line = line
             show_current_board()
+            #pass
         except Exception as e:
             print('Can not show board ' + str(e))
             game_running = False
@@ -165,10 +167,20 @@ def run_game(bot):
         if 'You die...' in nethack_screen.get_screen():
             game_running = False
         if game_running:
+            if turns > 0:
+                prev_state = current_state
+            current_state = nethack_screen.get_screen()
+            if turns > 0:
+                if prev_state == current_state:
+                    bot.remember(current_state, next_key, 0.0)
+                else:
+                    bot.remember(current_state, next_key, 1.0)
             turns += 1
             next_key = bot.get_response(nethack_screen.get_screen())
-            print(next_key)
-            if next_key == '.':
+            time.sleep(1)
+            nh.sendline(bot.num_to_key(next_key))
+            print(bot.num_to_key(next_key))
+            if bot.num_to_key(next_key) == '.':
                 times_waited += 1
             else:
                 times_waited = 0
@@ -185,23 +197,20 @@ def run_game(bot):
                 nh.sendline('n')
                 time.sleep(1)
                 nh.sendline('\n')
-            time.sleep(1)
-            nh.sendline(next_key)
-            bot.send_reward(1)
-        else:
-            bot.send_reward(-1)
+        if not game_running:
+            bot.remember(current_state, next_key, -1.0)
     nh.kill(0)
     return turns # score for now 
 
 if __name__ == '__main__':
     botname = 'mybot'
-    bot = genetic_bot.simplebot(name='mybot')
+    bot = keras_bot.keras_bot()
     #bot.random_start()
+    bot.random_start()
     while True:
         turns = run_game(bot)
-        bot.save_bot(botname)
-        bot.adjust_layers()
-        turns = run_game(bot) # calc the rounds without the random layers
         logfile = open('logfile.log','a')
-        logfile.write('Survived for ' + str(turns) + ' turns with ' + str(len(bot.layers)) + ' layers\n')
+        logfile.write('Survived for ' + str(turns) + ' turns\n')
         logfile.close()
+        bot.replay(32)
+        bot.save_model()

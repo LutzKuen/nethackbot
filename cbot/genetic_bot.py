@@ -26,9 +26,11 @@ class simplebot(object):
     def random_start(self):
         # add a random mult layer
         for i in range(10): # make 10 random rules
+            #nr1 = np.array(np.ones(shape=(self.insize,))*0).astype('int')
             nr1 = np.array(np.random.rand(self.insize)*255).astype('int')
+            #nr2 = np.array(np.ones(shape=(self.insize,))*255).astype('int')
             nr2 = np.array(np.random.rand(self.insize)*255).astype('int')
-            result = self.allowed_commands[math.floor(np.random.rand()*len(self.allowed_commands))]
+            result = 'y'#self.allowed_commands[math.floor(np.random.rand()*len(self.allowed_commands))]
             self.layers.append((nr1, nr2, result, 0, 0, -1))
         self.layers = sorted(self.layers, key=lambda x: x[3])
     def adjust_layers(self):
@@ -45,10 +47,19 @@ class simplebot(object):
                     done = False
                     break
     def send_reward(self, reward):
-        for layer in self.layers:
+        #print('Received reward ' + str(reward))
+        new_layers = []
+        for i, layer in enumerate(self.layers):
             if layer[5] >= 0:
                 distance = float(self.turn - layer[5])
-                layer[4] += float(reward)/distance
+                new_reward = layer[4] + float(reward)/distance
+                new_layer = [layer[0], layer[1], layer[2], layer[3], new_reward, layer[5]]
+                #print(new_layer[4])
+                new_layers.append(new_layer)
+            else:
+                #print(layer[5])
+                new_layers.append(layer)
+        self.layers = new_layers
     def get_response(self, inputs): # input is 24x81 chars long
         num_inputs = np.zeros(shape=(self.insize,))
         i = 0
@@ -59,13 +70,20 @@ class simplebot(object):
             return 'y'
         if inputs.isspace() or inputs == '':
             return '\n'
+        shift_idx = 0
         for ch in inputs:
             num_inputs[i] = ord(ch)
+            if num_inputs[i] == 64:
+                shift_idx = i
             i += 1
-        for layer in self.layers:
+        #print('Shifting by ' + str(shift_idx))
+        num_inputs = np.roll(num_inputs, -shift_idx)
+        for i, layer in enumerate(self.layers):
             if np.all(layer[0] <= num_inputs) and np.all(layer[1] >= num_inputs):
-                layer[3] += 1
-                layer[5] = self.turn
+                #print('Layer activated!!')
+                new_layer = [layer[0], layer[1], layer[2], layer[3]+1, layer[4], self.turn]
+                self.layers.pop(i)
+                self.layers.append(new_layer)
                 self.turn += 1
                 return layer[2]
         return '.'
