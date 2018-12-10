@@ -31,7 +31,7 @@ class keras_bot(object):
         return self.allowed_commands[num]
     def random_start(self):
         try:
-            self.model = load_model('model.keras')
+            self.model = load_model('../model.keras')
         except:
             print('failed to load model')
             self.model = Sequential()
@@ -92,4 +92,4 @@ class keras_bot(object):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
     def save_model(self):
-        self.model.save('model.keras')
+        self.model.save('../model.keras')
