@@ -26,7 +26,7 @@ class VScreen(object):
         if (len(msg) + x) > len(row):
             msg = msg[0:(len(msg) - x)]
         row[x:(len(msg) + x)] = msg
-        row = ''.join(row)
+        row = ''.join(row).replace('\x1b',' ') # remove escape characters
         self.screen[y] = row
         return True
 
